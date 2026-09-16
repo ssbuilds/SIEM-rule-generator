@@ -1,146 +1,75 @@
 # SIEM Rule Generator
 
-An open-source web application that converts plain English descriptions of SIEM use cases into Sigma rules and KQL queries using multiple AI providers.
+SIEM Rule Generator is an experimental web application that turns a plain-English detection idea into a draft Sigma rule and a draft KQL query with a selected AI provider.
 
-## Features
+> **Research status:** generated rules are starting points for review, not production-ready detections. Validate syntax, field mappings, ATT&CK mappings, expected matches, false positives, and performance before deployment.
 
-- **Multi-AI Provider Support**: Anthropic Claude, OpenAI GPT-4o, Azure OpenAI, and Groq (Llama 4 Scout)
-- **Dual Output Format**: Generates both Sigma rules (universal SIEM format) and KQL queries (Microsoft Sentinel)
-- **User-Provided API Keys**: Secure, client-controlled AI service integration
-- **Template System**: Pre-built templates for common cybersecurity use cases
-- **Professional UI**: Dark theme optimized for cybersecurity professionals
-- **Persistent Storage**: PostgreSQL database with automatic fallback to in-memory storage
+## Current scope
 
-## Quick Start
+The current application:
+
+- accepts a title, description, log source, severity, optional MITRE ATT&CK text, and optional detection context;
+- supports Anthropic, OpenAI, and Groq in the server implementation;
+- accepts `azure` in the request schema and interface, but the AI service does not implement it;
+- sends the user's provider API key and rule request to the Express server;
+- stores the API configuration, including the key, in browser `localStorage`;
+- returns model-generated Sigma and KQL text; and
+- stores generated-rule metadata in an in-process `MemStorage` instance.
+
+The project does not yet include a Sigma/KQL parser, ATT&CK identifier validation, an automated benchmark, automated tests, or CI. See [Current architecture](docs/current-architecture.md) for the code-grounded inventory.
+
+## Security and privacy warning
+
+Do not enter client data, production logs, credentials, internal hostnames, tenant identifiers, incident details, or other sensitive information. Detection examples and benchmark fixtures for this public project must be synthetic or drawn from public sources under compatible terms.
+
+API keys are sensitive. The current client stores its configuration in browser `localStorage` and sends the key to this application's server so the server can call the chosen provider. Use a restricted test key, run only in an environment you trust, and remove the saved configuration after testing. This project does not claim zero server exposure.
+
+## Run locally
 
 ### Prerequisites
 
-- Node.js 18+ 
-- PostgreSQL database (optional - uses in-memory storage as fallback)
-- API key from at least one supported provider
+- Node.js 18 or later
+- npm
+- `DATABASE_URL` set to a PostgreSQL connection string
+- an API key for Anthropic, OpenAI, or Groq
 
-### Installation
+Although generated records use `MemStorage`, `server/db.ts` is imported at startup and requires `DATABASE_URL`.
 
 ```bash
-# Clone the repository
-git clone https://github.com/yourusername/siem-rule-generator.git
-cd siem-rule-generator
-
-# Install dependencies
+git clone https://github.com/ssbuilds/SIEM-rule-generator.git
+cd SIEM-rule-generator
 npm install
-
-# Set up environment variables
 cp .env.example .env
-# Edit .env with your database URL (optional)
-
-# Start the development server
+# Set DATABASE_URL in .env or your shell.
 npm run dev
 ```
 
-The application will be available at `http://localhost:5000`
+Open the local URL shown by the development server. Add a restricted test provider key in Settings.
 
-### AI Provider Setup
+## Evaluation roadmap
 
-1. **Anthropic Claude**: Get API key from https://console.anthropic.com
-2. **OpenAI**: Get API key from https://platform.openai.com
-3. **Azure OpenAI**: Configure through Azure portal
-4. **Groq**: Get API key from https://console.groq.com
+The first public benchmark will use 20 synthetic cases:
 
-## Usage
+- 10 Microsoft Entra ID cases;
+- 10 Windows/Sysmon cases.
 
-1. **Configure AI Provider**: Click the settings icon to add your API key
-2. **Describe Use Case**: Enter a natural language description of your detection scenario
-3. **Select Template** (optional): Choose from pre-built cybersecurity scenarios
-4. **Generate Rules**: Click generate to create both Sigma and KQL rules
-5. **Copy & Deploy**: Use the copy buttons to integrate rules into your SIEM
+AWS CloudTrail and Microsoft 365 are the next planned log-source families. The benchmark will freeze inputs and expected properties, repeat nondeterministic model runs, retain per-case results, separate syntax and semantic checks, and require human review before any quality claim.
 
-## Example Use Cases
+The evaluation follows a staged principle: run cheap deterministic checks across every output, then spend model-assisted and human review on the smaller set that needs deeper judgment. This is technically analogous to the cost-aware triage-then-reasoning pattern described by Uber's Agentic AI Detection and Response work, but it is not an implementation of Uber ADR and does not reuse ADR code or benchmark data. See [Evaluation plan](docs/evaluation-plan.md).
 
-- **Lateral Movement Detection**: "Detect suspicious SMB connections to multiple hosts"
-- **Credential Dumping**: "Identify LSASS process access attempts"
-- **PowerShell Attacks**: "Monitor for encoded PowerShell commands"
-- **Privilege Escalation**: "Detect unusual service creation events"
+## Documentation
 
-## Technology Stack
+- [Current architecture](docs/current-architecture.md)
+- [Threat model](docs/threat-model.md)
+- [Evaluation plan](docs/evaluation-plan.md)
+- [Portfolio data and IP policy](docs/portfolio-data-policy.md)
+- [Security policy](SECURITY.md)
+- [Contributing](CONTRIBUTING.md)
 
-- **Frontend**: React + TypeScript + Vite
-- **Backend**: Express.js + TypeScript
-- **Database**: PostgreSQL + Drizzle ORM
-- **Styling**: Tailwind CSS + shadcn/ui
-- **AI Integration**: Multiple provider SDK support
+## Responsible use
 
-## Project Structure
-
-```
-├── client/                 # React frontend
-│   ├── src/
-│   │   ├── components/     # UI components
-│   │   ├── pages/          # Application pages
-│   │   └── hooks/          # Custom React hooks
-├── server/                 # Express backend
-│   ├── services/           # Business logic
-│   └── routes.ts          # API endpoints
-├── shared/                 # Shared types and schemas
-└── package.json
-```
-
-## Development
-
-```bash
-# Start development server
-npm run dev
-
-# Database operations (if using PostgreSQL)
-npm run db:push    # Push schema changes
-npm run db:studio  # Open Drizzle Studio
-
-# Build for production
-npm run build
-```
-
-## Environment Variables
-
-```env
-# Database (optional)
-DATABASE_URL=postgresql://user:password@host:port/db
-
-# AI Provider Keys (configure via UI)
-# ANTHROPIC_API_KEY=your_key_here
-# OPENAI_API_KEY=your_key_here
-```
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature-name`
-3. Make changes and test thoroughly
-4. Commit with clear messages: `git commit -m "Add feature description"`
-5. Push to your fork: `git push origin feature-name`
-6. Create a Pull Request
-
-## Security
-
-- API keys are stored locally in browser storage only
-- No API keys are transmitted to or stored on the server
-- All AI requests are made client-side through secure endpoints
-- Input validation and sanitization implemented throughout
+Generated rules can miss malicious activity or create noisy alerts. Do not deploy them without review and testing in the target SIEM. Do not use this project to process data you are not allowed to disclose to the selected model provider or to this application's server.
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) file for details.
-
-## Support
-
-- Create an issue for bug reports or feature requests
-- Check existing issues before creating new ones
-- Provide detailed information including error messages and steps to reproduce
-
-## Acknowledgments
-
-- Built with modern web technologies and security best practices
-- Supports the open-source cybersecurity community
-- Integrates with leading AI providers for maximum flexibility
-
----
-
-**Made for cybersecurity professionals by cybersecurity professionals**
+See [LICENSE](LICENSE).
